@@ -21,7 +21,7 @@ var db *sql.DB
 
 func main() {
 	var err error
-	db, err = sql.Open("postgres", "user=forkscanner dbname=forkscanner sslmode=disable")
+	db, err = sql.Open("postgres", "user=forkscanner dbname=forkscanner sslmode=disable password=forkscanner")
 	if err != nil {
 		log.Fatal(err)
 	}
