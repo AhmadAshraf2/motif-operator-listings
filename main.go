@@ -65,7 +65,7 @@ func getOperators(w http.ResponseWriter, r *http.Request) {
 	var operators []Operator
 	for rows.Next() {
 		var operator Operator
-		if err := rows.Scan(&operator.LogoURI, &operator.IPAddress, &operator.Name, &operator.EthAddress); err != nil {
+		if err := rows.Scan(&operator.LogoURI, &operator.IPAddress, &operator.Name, &operator.EthAddress, &operator.BtcPublicKey); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
