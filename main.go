@@ -11,10 +11,11 @@ import (
 )
 
 type Operator struct {
-	LogoURI    string `json:"logo_uri"`
-	IPAddress  string `json:"ip_address"`
-	Name       string `json:"name"`
-	EthAddress string `json:"eth_address"`
+	LogoURI      string `json:"logo_uri"`
+	IPAddress    string `json:"ip_address"`
+	Name         string `json:"name"`
+	EthAddress   string `json:"eth_address"`
+	BtcPublicKey string `json:"btc_public_key"`
 }
 
 var db *sql.DB
@@ -42,8 +43,8 @@ func createOperator(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := db.Exec(`INSERT INTO operators (logo_uri, ip_address, name, eth_address) VALUES ($1, $2, $3, $4)`,
-		operator.LogoURI, operator.IPAddress, operator.Name, operator.EthAddress)
+	_, err := db.Exec(`INSERT INTO operators (logo_uri, ip_address, name, eth_address) VALUES ($1, $2, $3, $4, $5)`,
+		operator.LogoURI, operator.IPAddress, operator.Name, operator.EthAddress, operator.BtcPublicKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
