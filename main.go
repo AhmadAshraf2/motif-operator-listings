@@ -55,7 +55,7 @@ func createOperator(w http.ResponseWriter, r *http.Request) {
 }
 
 func getOperators(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.Query("SELECT logo_uri, ip_address, name, eth_address FROM operators")
+	rows, err := db.Query("SELECT logo_uri, ip_address, name, eth_address, btc_public_key FROM operators")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
