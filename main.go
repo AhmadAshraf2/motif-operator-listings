@@ -43,7 +43,7 @@ func createOperator(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := db.Exec(`INSERT INTO operators (logo_uri, ip_address, name, eth_address) VALUES ($1, $2, $3, $4, $5)`,
+	_, err := db.Exec(`INSERT INTO operators (logo_uri, ip_address, name, eth_address, btc_public_key) VALUES ($1, $2, $3, $4, $5)`,
 		operator.LogoURI, operator.IPAddress, operator.Name, operator.EthAddress, operator.BtcPublicKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
