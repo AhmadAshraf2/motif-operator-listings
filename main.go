@@ -1,77 +1,45 @@
 package main
 
 import (
-	"database/sql"
-	"encoding/json"
-	"log"
-	"net/http"
+	"fmt"
+	"sync"
 
-	"github.com/gorilla/mux"
+	"github.com/AhmadAshraf2/motif-operator-listings/apiServer"
+	"github.com/AhmadAshraf2/motif-operator-listings/eventListener"
 	_ "github.com/lib/pq"
+	"github.com/spf13/viper"
 )
 
-type Operator struct {
-	LogoURI      string `json:"logo_uri"`
-	IPAddress    string `json:"ip_address"`
-	Name         string `json:"name"`
-	EthAddress   string `json:"eth_address"`
-	BtcPublicKey string `json:"btc_public_key"`
-}
-
-var db *sql.DB
-
 func main() {
-	var err error
-	db, err = sql.Open("postgres", "user=forkscanner dbname=operators sslmode=disable password=forkscanner")
-	if err != nil {
-		log.Fatal(err)
+	InitConfigFile()
+	var wg sync.WaitGroup
+	// Function to restart a goroutine if it exits
+	restartable := func(name string, fn func()) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				fmt.Printf("Starting %s...\n", name)
+				fn()
+				fmt.Printf("%s exited. Restarting...\n", name)
+			}
+		}()
 	}
-	defer db.Close()
 
-	router := mux.NewRouter()
+	// Start all processes with restartable logic
+	restartable("MetaData listerner", eventListener.ListenUpdateMetaData)
+	restartable("MotifListener listerner", eventListener.ListenMotifOperatorRegistered)
+	restartable("apiServer", apiServer.StartApiServer)
 
-	router.HandleFunc("/operator", createOperator).Methods("POST")
-	router.HandleFunc("/operators", getOperators).Methods("GET")
-
-	log.Fatal(http.ListenAndServe(":8000", router))
+	wg.Wait()
 }
 
-func createOperator(w http.ResponseWriter, r *http.Request) {
-	var operator Operator
-	if err := json.NewDecoder(r.Body).Decode(&operator); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	_, err := db.Exec(`INSERT INTO operators (logo_uri, ip_address, name, eth_address, btc_public_key) VALUES ($1, $2, $3, $4, $5)`,
-		operator.LogoURI, operator.IPAddress, operator.Name, operator.EthAddress, operator.BtcPublicKey)
+func InitConfigFile() {
+	viper.AddConfigPath("./configs")
+	viper.SetConfigName("config") // Register config file name (no extension)
+	viper.SetConfigType("json")   // Look for specific type
+	err := viper.ReadInConfig()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		fmt.Println("Error reading config file: ", err)
 	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "operator created"})
-}
-
-func getOperators(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.Query("SELECT logo_uri, ip_address, name, eth_address, btc_public_key FROM operators")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var operators []Operator
-	for rows.Next() {
-		var operator Operator
-		if err := rows.Scan(&operator.LogoURI, &operator.IPAddress, &operator.Name, &operator.EthAddress, &operator.BtcPublicKey); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		operators = append(operators, operator)
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(operators)
 }

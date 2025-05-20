@@ -1,0 +1,10 @@
+{
+    "DB_port": "5432",
+    "DB_host": "localhost",
+    "DB_user": "forkscanner",
+    "DB_password" : "forkscanner",
+    "DB_name" : "operators",
+    "eth_rpc_host": "https://yolo-little-fire.ethereum-holesky.quiknode.pro/86056956d0dbb1cc5bddc29d08ac83ad89112415/",
+    "eigen_delegation_manager_contract": "0xA44151489861Fe9e3055d95adC98FbD462B948e7",
+    "motif_stake_contract": "0x83210B83d55fbCA44099972C358Bf8a4493352B1"
+}
