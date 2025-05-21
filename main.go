@@ -27,8 +27,9 @@ func main() {
 	}
 
 	// Start all processes with restartable logic
-	restartable("MetaData listerner", eventListener.ListenUpdateMetaData)
-	restartable("MotifListener listerner", eventListener.ListenMotifOperatorRegistered)
+	restartable("MetaData listener", eventListener.SubscribeToOperatorRegisteredEigenlayer)
+	restartable("Motif btc de register listener", eventListener.SubscribeToBtcKeyDeregistered)
+	restartable("Motif btc registration listener", eventListener.SubscribeToBtcKeyRegistered)
 	restartable("apiServer", apiServer.StartApiServer)
 
 	wg.Wait()

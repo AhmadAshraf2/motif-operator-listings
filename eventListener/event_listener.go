@@ -2,152 +2,172 @@ package eventListener
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"strings"
+	"time"
 
+	"github.com/AhmadAshraf2/motif-operator-listings/DelegationManager"
+	"github.com/AhmadAshraf2/motif-operator-listings/MotifRegistry"
 	"github.com/AhmadAshraf2/motif-operator-listings/eventHandler"
-	"github.com/AhmadAshraf2/motif-operator-listings/utils"
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/spf13/viper"
 )
 
-func ListenUpdateMetaData() {
-	const abiFilePath = "abis/eigen_layer_delegation_manager.abi"
-	delegationManagerAddress := viper.GetString("eigen_delegation_manager_contract")
-	delegationManagerABI, err := utils.ReadABIFromFile(abiFilePath)
+func SubscribeToBtcKeyRegistered() {
+	// Create a new instance of the contract binding
+
+	// oprEthAccount := LoadEthAccount()
+	client, err := rpc.Dial(viper.GetString("eth_ws_host"))
 	if err != nil {
-		log.Fatalf("Failed to read ABI from file: %v", err)
+		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
-	client, err := utils.GetEthClient()
+
+	ethClient := ethclient.NewClient(client)
+	defer ethClient.Close()
+	defer client.Close()
+
+	motifRegistryAddr := common.HexToAddress(viper.GetString("motif_stake_contract"))
+	motifRegistry, err := MotifRegistry.NewMotifRegistry(motifRegistryAddr, ethClient)
 	if err != nil {
-		log.Fatalf("Failed to connect to Ethereum node: %v", err)
+		fmt.Println("Failed to instantiate contract:", err)
+		panic(err)
 	}
 
-	// Parse the contract ABI
-	parsedABI, err := abi.JSON(strings.NewReader(delegationManagerABI))
+	// // Create a channel for the events
+	ch := make(chan *MotifRegistry.MotifRegistryOperatorBtcKeyRegistered)
+
+	// // Create a subscription
+	sub, err := motifRegistry.WatchOperatorBtcKeyRegistered(
+		&bind.WatchOpts{Context: context.Background()},
+		ch,
+		[]common.Address{},
+	)
 	if err != nil {
-		log.Fatalf("Failed to parse contract ABI: %v", err)
+		fmt.Println("Failed to subscribe to operator btc key register events:", err)
+		panic(err)
 	}
 
-	// Define the contract address
-	contractAddress := common.HexToAddress(delegationManagerAddress)
+	fmt.Println("Successfully subscribed to operatorbtc key registered events")
 
-	// Define the event topics
-	operatorRegisteredSig := parsedABI.Events["OperatorRegistered"].ID.Hex()
-	operatorMetadataURIUpdatedSig := parsedABI.Events["OperatorMetadataURIUpdated"].ID.Hex()
+	// Handle events in a loop
+	for {
+		select {
+		case err := <-sub.Err():
+			fmt.Println("Subscription error deposit:", err)
+			if err == nil {
+				return
+			}
+			time.Sleep(1 * time.Minute)
 
-	// Create a query to filter logs for both events
-	query := ethereum.FilterQuery{
-		Addresses: []common.Address{contractAddress},
-		Topics:    [][]common.Hash{{common.HexToHash(operatorRegisteredSig), common.HexToHash(operatorMetadataURIUpdatedSig)}},
-	}
-
-	// Fetch logs
-	logs, err := client.FilterLogs(context.Background(), query)
-	if err != nil {
-		log.Fatalf("Failed to fetch logs: %v", err)
-	}
-
-	// Process logs
-	for _, vLog := range logs {
-		switch vLog.Topics[0].Hex() {
-		case operatorMetadataURIUpdatedSig:
-			eventHandler.HandleOperatorMetadataURIUpdated(parsedABI, vLog)
+		case event := <-ch:
+			eventHandler.HandleMotifOperatorRegistered(event)
 		}
 	}
-
 }
 
-func ListenMotifOperatorRegistered() {
-	const abiFilePath = "abis/motif_stake_registry.abi" // Path to the ABI file
-	motifStakeRegistryAddress := viper.GetString("motif_stake_contract")
+func SubscribeToBtcKeyDeregistered() {
+	// Create a new instance of the contract binding
 
-	// Read the ABI from the file
-	delegationManagerABI, err := utils.ReadABIFromFile(abiFilePath)
+	// oprEthAccount := LoadEthAccount()
+	client, err := rpc.Dial(viper.GetString("eth_ws_host"))
 	if err != nil {
-		log.Fatalf("Failed to read ABI from file: %v", err)
+		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
 
-	// Connect to the Ethereum client
-	client, err := utils.GetEthClient()
+	ethClient := ethclient.NewClient(client)
+	defer ethClient.Close()
+	defer client.Close()
+
+	motifRegistryAddr := common.HexToAddress(viper.GetString("motif_stake_contract"))
+	motifRegistry, err := MotifRegistry.NewMotifRegistry(motifRegistryAddr, ethClient)
 	if err != nil {
-		log.Fatalf("Failed to connect to Ethereum node: %v", err)
+		fmt.Println("Failed to instantiate contract:", err)
+		panic(err)
 	}
 
-	// Parse the contract ABI
-	parsedABI, err := abi.JSON(strings.NewReader(delegationManagerABI))
+	// // Create a channel for the events
+	ch := make(chan *MotifRegistry.MotifRegistryOperatorBtckeyDeregistered)
+
+	// // Create a subscription
+	sub, err := motifRegistry.WatchOperatorBtckeyDeregistered(
+		&bind.WatchOpts{Context: context.Background()},
+		ch,
+		[]common.Address{},
+	)
 	if err != nil {
-		log.Fatalf("Failed to parse contract ABI: %v", err)
+		fmt.Println("Failed to subscribe to deregister btc events:", err)
+		panic(err)
 	}
 
-	// Define the contract address
-	contractAddress := common.HexToAddress(motifStakeRegistryAddress)
+	fmt.Println("Successfully subscribed to operator btc key deregistered events")
 
-	// Define the event topic
-	operatorBtcKeyRegisteredSig := parsedABI.Events["OperatorBtcKeyRegistered"].ID.Hex()
+	// Handle events in a loop
+	for {
+		select {
+		case err := <-sub.Err():
+			fmt.Println("Subscription error deposit:", err)
+			if err == nil {
+				return
+			}
+			time.Sleep(1 * time.Minute)
 
-	// Create a query to filter logs for the event
-	query := ethereum.FilterQuery{
-		Addresses: []common.Address{contractAddress},
-		Topics:    [][]common.Hash{{common.HexToHash(operatorBtcKeyRegisteredSig)}},
-	}
-
-	// Fetch logs
-	logs, err := client.FilterLogs(context.Background(), query)
-	if err != nil {
-		log.Fatalf("Failed to fetch logs: %v", err)
-	}
-
-	// Process logs
-	for _, vLog := range logs {
-		eventHandler.HandleMotifOperatorRegistered(parsedABI, vLog)
+		case event := <-ch:
+			eventHandler.HandleMotifOperatorDeregistered(event)
+		}
 	}
 }
 
-func ListenOperatorBtckeyDeregistered() {
-	const abiFilePath = "abis/motif_stake_registry.abi" // Path to the ABI file
-	motifStakeRegistryAddress := viper.GetString("motif_stake_contract")
+func SubscribeToOperatorRegisteredEigenlayer() {
+	// Create a new instance of the contract binding
 
-	// Read the ABI from the file
-	delegationManagerABI, err := utils.ReadABIFromFile(abiFilePath)
+	// oprEthAccount := LoadEthAccount()
+	client, err := rpc.Dial(viper.GetString("eth_ws_host"))
 	if err != nil {
-		log.Fatalf("Failed to read ABI from file: %v", err)
+		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
 
-	// Connect to the Ethereum client
-	client, err := utils.GetEthClient()
+	ethClient := ethclient.NewClient(client)
+	defer ethClient.Close()
+	defer client.Close()
+
+	delegationManagerAddr := common.HexToAddress(viper.GetString("eigen_delegation_manager_contract"))
+	delegationManager, err := DelegationManager.NewDelegationManager(delegationManagerAddr, ethClient)
 	if err != nil {
-		log.Fatalf("Failed to connect to Ethereum node: %v", err)
+		fmt.Println("Failed to instantiate contract:", err)
+		panic(err)
 	}
 
-	// Parse the contract ABI
-	parsedABI, err := abi.JSON(strings.NewReader(delegationManagerABI))
+	// // Create a channel for the events
+	ch := make(chan *DelegationManager.DelegationManagerOperatorMetadataURIUpdated)
+
+	// // Create a subscription
+	sub, err := delegationManager.WatchOperatorMetadataURIUpdated(
+		&bind.WatchOpts{Context: context.Background()},
+		ch,
+		[]common.Address{},
+	)
 	if err != nil {
-		log.Fatalf("Failed to parse contract ABI: %v", err)
+		fmt.Println("Failed to subscribe to metadata update events:", err)
+		panic(err)
 	}
 
-	// Define the contract address
-	contractAddress := common.HexToAddress(motifStakeRegistryAddress)
+	fmt.Println("Successfully subscribed to metadata update events")
 
-	// Define the event topic
-	operatorBtckeyDeregisteredSig := parsedABI.Events["OperatorBtckeyDeregistered"].ID.Hex()
+	// Handle events in a loop
+	for {
+		select {
+		case err := <-sub.Err():
+			fmt.Println("Subscription error deposit:", err)
+			if err == nil {
+				return
+			}
+			time.Sleep(1 * time.Minute)
 
-	// Create a query to filter logs for the event
-	query := ethereum.FilterQuery{
-		Addresses: []common.Address{contractAddress},
-		Topics:    [][]common.Hash{{common.HexToHash(operatorBtckeyDeregisteredSig)}},
-	}
-
-	// Fetch logs
-	logs, err := client.FilterLogs(context.Background(), query)
-	if err != nil {
-		log.Fatalf("Failed to fetch logs: %v", err)
-	}
-
-	// Process logs
-	for _, vLog := range logs {
-		eventHandler.HandleOperatorBtckeyDeregistered(parsedABI, vLog)
+		case event := <-ch:
+			eventHandler.HandleOperatorMetadataURIUpdatedEigenLayer(event)
+		}
 	}
 }

@@ -74,8 +74,8 @@ func UpsertOperator(db *sql.DB, operator types.Operator) error {
 	} else {
 		// Insert a new entry
 		queryInsert := `INSERT INTO operators (
-            eth_address, name, description, logo_uri, ip_address, btc_public_key, website, twitter, btc_address
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+            eth_address, name, description, logo_uri, ip_address, btc_public_key, website, twitter,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`
 		_, err := db.Exec(queryInsert, operator.EthAddress, operator.Name, operator.Description, operator.LogoURI, operator.IPAddress, operator.BtcPublicKey, operator.Website, operator.Twitter)
 		if err != nil {
 			return fmt.Errorf("failed to insert operator: %w", err)
@@ -122,3 +122,4 @@ func DeleteFromMotif(db *sql.DB, ethAddress string) error {
 
 	return nil
 }
+insert into operators (eth_address, name, description, logo_uri, ip_address, btc_public_key, website, twitter, is_motif) Values ('0x0DEAcaFe6AcE83833Ef56f1EE71CDF7F55Bf815c', 'Motif Operator 2', 'Holesky testnet opr 2', 'https://motif.finance/lovable-uploads/logo_small.png', '138.197.142.32', '03e93e762036390b05c649e32b3c8a96f4df25adfe8cdc29f9aadf832b67aa228f', '', '', true );

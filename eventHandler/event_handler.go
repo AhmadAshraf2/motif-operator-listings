@@ -2,33 +2,23 @@ package eventHandler
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"log"
 
+	"github.com/AhmadAshraf2/motif-operator-listings/DelegationManager"
+	"github.com/AhmadAshraf2/motif-operator-listings/MotifRegistry"
 	"github.com/AhmadAshraf2/motif-operator-listings/db"
 	"github.com/AhmadAshraf2/motif-operator-listings/types"
 	"github.com/AhmadAshraf2/motif-operator-listings/utils"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
-	etypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 var database *sql.DB
 
-func HandleOperatorMetadataURIUpdated(parsedABI abi.ABI, vLog etypes.Log) {
+func HandleOperatorMetadataURIUpdatedEigenLayer(event *DelegationManager.DelegationManagerOperatorMetadataURIUpdated) {
 	// Decode the event
 	dbconn := db.InitDB()
 	defer dbconn.Close()
-	event := struct {
-		Operator    common.Address
-		MetadataURI string
-	}{}
-
-	err := parsedABI.UnpackIntoInterface(&event, "OperatorMetadataURIUpdated", vLog.Data)
-	if err != nil {
-		log.Printf("Failed to unpack OperatorMetadataURIUpdated event: %v", err)
-		return
-	}
 
 	// Log the event details
 	fmt.Printf("OperatorMetadataURIUpdated:\n")
@@ -57,49 +47,28 @@ func HandleOperatorMetadataURIUpdated(parsedABI abi.ABI, vLog etypes.Log) {
 	fmt.Printf("  Operator %s upserted successfully\n", opr.EthAddress)
 }
 
-func HandleMotifOperatorRegistered(parsedABI abi.ABI, vLog etypes.Log) {
+func HandleMotifOperatorRegistered(event *MotifRegistry.MotifRegistryOperatorBtcKeyRegistered) {
 	dbconn := db.InitDB()
 	defer dbconn.Close()
-	// Decode the event
-	event := struct {
-		Operator     common.Address
-		BtcPublicKey []byte
-	}{}
 
-	err := parsedABI.UnpackIntoInterface(&event, "OperatorBtcKeyRegistered", vLog.Data)
-	if err != nil {
-		log.Printf("Failed to unpack OperatorBtcKeyRegistered event: %v", err)
-		return
-	}
-
-	// Log the event details
+	btcPubKey := hex.EncodeToString(event.BtcPublicKey[:])
 	fmt.Printf("OperatorBtcKeyRegistered:\n")
 	fmt.Printf("  Operator: %s\n", event.Operator.Hex())
 	fmt.Printf("  BTC Public Key: %x\n", event.BtcPublicKey)
-
-	db.AddOrUpdateBtcPublicKey(dbconn, event.Operator.Hex(), string(event.BtcPublicKey))
+	err := db.AddOrUpdateBtcPublicKey(dbconn, event.Operator.Hex(), btcPubKey)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
-func HandleOperatorBtckeyDeregistered(parsedABI abi.ABI, vLog etypes.Log) {
+func HandleMotifOperatorDeregistered(event *MotifRegistry.MotifRegistryOperatorBtckeyDeregistered) {
 	dbconn := db.InitDB()
 	defer dbconn.Close()
-	// Decode the event
-	event := struct {
-		Operator common.Address
-	}{}
-
-	err := parsedABI.UnpackIntoInterface(&event, "OperatorBtckeyDeregistered", vLog.Data)
-	if err != nil {
-		log.Printf("Failed to unpack OperatorBtckeyDeregistered event: %v", err)
-		return
-	}
-
 	// Log the event details
 	fmt.Printf("OperatorBtckeyDeregistered:\n")
 	fmt.Printf("  Operator: %s\n", event.Operator.Hex())
 
-	// Example: Remove the BTC public key from the database
-	err = db.DeleteFromMotif(database, event.Operator.Hex())
+	err := db.DeleteFromMotif(database, event.Operator.Hex())
 	if err != nil {
 		log.Printf("Failed to remove BTC public key for operator: %v", err)
 		return
